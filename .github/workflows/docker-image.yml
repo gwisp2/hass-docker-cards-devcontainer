@@ -18,13 +18,11 @@ jobs:
           gwisp2/hass-docker-cards-devcontainer
         tags: |
           type=sha
-    - uses: docker/build-push-action@v3.1.1
-      tags: gwisp2/hass-docker-cards-devcontainer:$(git rev-parse --short HEAD)
     - name: Login to DockerHub
-        if: github.event_name != 'pull_request'
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      if: github.event_name != 'pull_request'
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
     - name: Build and push
       uses: docker/build-push-action@v3
       with:
