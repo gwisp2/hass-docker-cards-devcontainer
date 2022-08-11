@@ -11,13 +11,13 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v4
-        with:
-          images: |
-            gwisp2/hass-docker-cards-devcontainer
-          tags: |
-            type=sha
+      id: meta
+      uses: docker/metadata-action@v4
+      with:
+        images: |
+          gwisp2/hass-docker-cards-devcontainer
+        tags: |
+          type=sha
     - uses: docker/build-push-action@v3.1.1
       tags: gwisp2/hass-docker-cards-devcontainer:$(git rev-parse --short HEAD)
     - name: Login to DockerHub
