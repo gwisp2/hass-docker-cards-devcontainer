@@ -1,5 +1,6 @@
 # hass-docker-cards-devcontainer
 A docker container for developing and testing custom Lovelace cards.
+This repository is forked from [thomasloven/hass-custom-devcontainer](https://github.com/thomasloven/hass-custom-devcontainer) to solve issue will postCreateCommand running infinitely therefore some VS Code actions like copying .gitconfig are not performed.
 
 ## Usage with docker
 ```
