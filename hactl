@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -e
 
 plugins=
 
@@ -112,6 +113,17 @@ function get_dev() {
     pip install --upgrade git+https://github.com/home-assistant/core.git@dev
 }
 
+function start() {
+    supervisorctl start hass
+    # Show logs until that line (to facilitate troubleshooting)
+    # TODO: exit tail when HA process exits before 'Starting Home Assistant' line
+    tail -f -n +1 /config/home-assistant.log | sed '/Starting Home Assistant/q'
+    # After completion of postCreateCommand vscode will do some useful stuff like copying .gitconfig from host.
+    # If postCreateCommand never completes then .gitconfig is never copied.
+    # Because of that we need to run HA in a background process.
+    echo "=== Home Assistant has started and continues running in background ==="
+}
+
 function run() {
     hass -c /config -v
 }
@@ -128,16 +140,25 @@ case $1 in
     setup)
         setup
         ;;
-    launch)
+    setup-start)
+        setup
+        start
+        ;;
+    start)
+        # Starts HA and exits. Should not be used as a CMD for docker container because container will exit.
+        # 'start' command is intended to be used as postCreateCommand for devcontainer.json.
+        start
+        ;;
+    setup-run)
+        # To be used as a docker CMD
+        setup
         run
         ;;
-    run-dev)
-        get_dev
-        setup
+    run)
+        # To be used as a docker CMD
         run
         ;;
     *)
-        setup
-        run
+        echo 'Unknown command'
         ;;
 esac
