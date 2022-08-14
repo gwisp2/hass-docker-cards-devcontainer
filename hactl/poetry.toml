@@ -1,0 +1,3 @@
+[virtualenvs]
+# mypy needs a path to venv to be explicitly provided so we need some deterministic path
+in-project = true

@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 
-import itertools
 from selectors import EVENT_READ, DefaultSelector
-from asyncio.subprocess import DEVNULL, PIPE, STDOUT
+from subprocess import DEVNULL, PIPE, STDOUT
 import contextlib
-from genericpath import exists
 from io import BytesIO
 import json
 import os
@@ -22,18 +20,20 @@ from rich.status import Status
 from rich.console import Group
 from rich.padding import Padding
 from rich.markup import escape
-from select import select
 import tempfile
 import zipfile
 
 HASS_VENV_DIR = Path("/home/vscode/hass-venv")
 HASS_CONFIG_ROOT = Path("/home/vscode/config")
-WORKSPACE_DIRECTORY = HASS_CONFIG_ROOT.joinpath('www/workspace')
-DOT_STORAGE_DIRECTORY = HASS_CONFIG_ROOT.joinpath('.storage')
-LOVELACE_PLUGINS = ["thomasloven/lovelace-card-mod",
-                    "thomasloven/lovelace-auto-entities", "custom-cards/button-card"]
+WORKSPACE_DIRECTORY = HASS_CONFIG_ROOT.joinpath("www/workspace")
+DOT_STORAGE_DIRECTORY = HASS_CONFIG_ROOT.joinpath(".storage")
+LOVELACE_PLUGINS = [
+    "thomasloven/lovelace-card-mod",
+    "thomasloven/lovelace-auto-entities",
+    "custom-cards/button-card",
+]
 
-plugin_files = []
+plugin_files: List[Path] = []
 
 
 class TaskException(Exception):
@@ -54,7 +54,8 @@ class TaskLogger:
 
     def log(self, renderable):
         self._output.renderables.append(
-            Padding(renderable, pad=(0, 0, 0, 3), style="grey50"))
+            Padding(renderable, pad=(0, 0, 0, 3), style="grey50")
+        )
 
     def mark_no_changes(self):
         self._update_status("no changes")
@@ -62,25 +63,25 @@ class TaskLogger:
     @contextlib.contextmanager
     def use(self):
         """
-            Starts logging for the task.
-            Task logs will be displayed on console under the task header.
+        Starts logging for the task.
+        Task logs will be displayed on console under the task header.
 
-            Usage:
+        Usage:
 
-                task = Task(console, name)
-                with task.use():
-                    task.log("Hello")
-                    task.log("World")
+            task = Task(console, name)
+            with task.use():
+                task.log("Hello")
+                task.log("World")
         """
         with Live(self._output, console=self._console) as live:
             try:
                 yield
-                if self._status != 'no changes':
+                if self._status != "no changes":
                     self._update_status("changed")
             except KeyboardInterrupt:
                 self._update_status("cancelled")
                 raise
-            except:
+            except Exception:
                 self._update_status("failed")
                 raise
             finally:
@@ -93,13 +94,13 @@ class TaskLogger:
     def _update_output_header(self):
         # Compute new header
         if self._status == "running":
-            new_header = Status(f" {self._name}", spinner='line')
+            new_header = Status(f" {self._name}", spinner="line")
         elif self._status == "changed":
-            new_header = f":white_check_mark: {self._name} \[[green]changed[/]]"
+            new_header = rf":white_check_mark: {self._name} \[[green]changed[/]]"
         elif self._status == "no changes":
-            new_header = f":sparkles: {self._name} \[[yellow]no changes[/]]"
+            new_header = rf":sparkles: {self._name} \[[yellow]no changes[/]]"
         elif self._status == "failed" or self._status == "cancelled":
-            new_header = f":X: {self._name} \[[red]{self._status}[/]]"
+            new_header = rf":X: {self._name} \[[red]{self._status}[/]]"
 
         # Set new header
         if len(self._output.renderables) == 0:
@@ -120,60 +121,96 @@ class HaCtl:
 
     def install_hass(self, version: str):
         with self.task(f"Installing HASS {escape(version)}"):
-            venv_bin_dir = HASS_VENV_DIR.joinpath('bin')
-            venv_pip = str(venv_bin_dir.joinpath('pip'))
+            venv_bin_dir = HASS_VENV_DIR.joinpath("bin")
+            venv_pip = str(venv_bin_dir.joinpath("pip"))
 
             if not HASS_VENV_DIR.exists() or len(os.listdir(HASS_VENV_DIR)) == 0:
-                self.log(
-                    f"Creating virtualenv at {escape(str(HASS_VENV_DIR))}")
+                self.log(f"Creating virtualenv at {escape(str(HASS_VENV_DIR))}")
                 self.run_command(["python", "-m", "venv", str(HASS_VENV_DIR)])
 
             had_changes = False
             need_install_hass = True
-            pip_installed_packages = json.loads(self.run_command(
-                [venv_pip, "list", "--format", "json", "--disable-pip-version-check"]).stdout)
+            pip_installed_packages = json.loads(
+                self.run_command(
+                    [
+                        venv_pip,
+                        "list",
+                        "--format",
+                        "json",
+                        "--disable-pip-version-check",
+                    ]
+                ).stdout
+            )
             home_assistant_version = next(
-                (p["version"] for p in pip_installed_packages if p["name"] == "homeassistant"), None)
+                (
+                    p["version"]
+                    for p in pip_installed_packages
+                    if p["name"] == "homeassistant"
+                ),
+                None,
+            )
             if home_assistant_version is not None:
                 if home_assistant_version == version:
                     need_install_hass = False
                 else:
                     self.log(
-                        f"Home Assistant {escape(home_assistant_version)} is installed, installing {escape(version)} instead")
+                        f"Home Assistant {escape(home_assistant_version)} is installed"
+                        + f", installing {escape(version)} instead"
+                    )
 
             if need_install_hass:
                 had_changes = True
                 self.log(f"Installing to {escape(str(HASS_VENV_DIR))}")
-                self.run_command(
-                    [venv_pip, "install", f"homeassistant=={version}"])
+                self.run_command([venv_pip, "install", f"homeassistant=={version}"])
 
             additional_packages_to_install = ["sqlalchemy", "fnvhash"]
-            pip_installed_packages = json.loads(self.run_command(
-                [venv_pip, "list", "--format", "json", "--disable-pip-version-check"]).stdout)
+            pip_installed_packages = json.loads(
+                self.run_command(
+                    [
+                        venv_pip,
+                        "list",
+                        "--format",
+                        "json",
+                        "--disable-pip-version-check",
+                    ]
+                ).stdout
+            )
             pip_installed_additional_packages = [
-                p["name"] for p in pip_installed_packages if p["name"] in additional_packages_to_install]
-            if set(pip_installed_additional_packages).issuperset(set(additional_packages_to_install)):
+                p["name"]
+                for p in pip_installed_packages
+                if p["name"] in additional_packages_to_install
+            ]
+            if set(pip_installed_additional_packages).issuperset(
+                set(additional_packages_to_install)
+            ):
                 had_changes = True
                 self.log("Installing additional packages")
-                self.run_command(
-                    [venv_pip, "install", *additional_packages_to_install])
+                self.run_command([venv_pip, "install", *additional_packages_to_install])
 
             if not had_changes:
                 self.mark_no_changes()
 
     def dry_run_and_install_missing_packages(self):
         """
-            HA downloads and installs additional python packages during startup.
-            Start HA for some time so that all packages are added into docker image.
+        HA downloads and installs additional python packages during startup.
+        Start HA for some time so that all packages are added into docker image.
         """
         with self.task("Dry run HA to install missing packages"):
-            venv_bin_dir = HASS_VENV_DIR.joinpath('bin')
-            venv_pip = str(venv_bin_dir.joinpath('pip'))
+            venv_bin_dir = HASS_VENV_DIR.joinpath("bin")
+            venv_pip = str(venv_bin_dir.joinpath("pip"))
 
-            pip_installed_packages = json.loads(self.run_command(
-                [venv_pip, "list", "--format", "json", "--disable-pip-version-check"]).stdout)
-            installed_package_names = [p["name"]
-                                       for p in pip_installed_packages]
+            pip_installed_packages = json.loads(
+                self.run_command(
+                    [
+                        venv_pip,
+                        "list",
+                        "--format",
+                        "json",
+                        "--disable-pip-version-check",
+                    ]
+                ).stdout
+            )
+            installed_package_names = [p["name"] for p in pip_installed_packages]
             if "home-assistant-frontend" in installed_package_names:
                 # Consider that everything is already installed
                 self.mark_no_changes()
@@ -181,30 +218,33 @@ class HaCtl:
 
             # Forbid using non-virtualenv packages
             subprocess_env = dict(os.environ)
-            subprocess_env.pop('PYTHONPATH', None)
+            subprocess_env.pop("PYTHONPATH", None)
 
             # Run HA in a temporary directory
             with tempfile.TemporaryDirectory() as tmp_dir:
                 # Start HA
-                hass_command = self.build_hass_command(
-                    ["-v"], config_dir=tmp_dir)
+                hass_command = self.build_hass_command(["-v"], config_dir=tmp_dir)
 
                 try:
                     proc = subprocess.Popen(
-                        hass_command, env=subprocess_env, stdin=DEVNULL, stdout=PIPE, stderr=STDOUT)
+                        hass_command,
+                        env=subprocess_env,
+                        stdin=DEVNULL,
+                        stdout=PIPE,
+                        stderr=STDOUT,
+                    )
 
                     StartupResult = Literal["timeout", "crash", "ok"]
                     hass_startup_result: Optional[StartupResult] = None
                     unprocessed_bytes = b""
 
-                    # Consider HA hung if it doesn't print logs for that amounts of seconds
+                    # Consider HA hung if it doesn't print logs for some time
                     read_timeout = 60
 
                     # Make pipe non-blocking
                     pipe_fd = proc.stdout.fileno()
                     pipe_fl = fcntl.fcntl(pipe_fd, fcntl.F_GETFL)
-                    fcntl.fcntl(pipe_fd, fcntl.F_SETFL,
-                                pipe_fl | os.O_NONBLOCK)
+                    fcntl.fcntl(pipe_fd, fcntl.F_SETFL, pipe_fl | os.O_NONBLOCK)
 
                     # Scan logs
                     log = BytesIO()
@@ -218,7 +258,8 @@ class HaCtl:
                                 hass_startup_result = "timeout"
                             else:
                                 bytes_read = proc.stdout.read()
-                                # Remember everything read so that we can print logs if HA crashes
+                                # Remember everything read
+                                # so that we can print logs if HA crashes
                                 log.write(bytes_read)
 
                                 if len(bytes_read) == 0:
@@ -227,9 +268,18 @@ class HaCtl:
                                 else:
                                     # Process bytes
                                     last_bytes = unprocessed_bytes + bytes_read
-                                    lines = last_bytes.split(b'\n')
-                                    startup_completion_marker_found = next(
-                                        (line for line in lines if b'Starting Home Assistant' in line), None) is not None
+                                    lines = last_bytes.split(b"\n")
+                                    startup_completion_marker_found = (
+                                        next(
+                                            (
+                                                line
+                                                for line in lines
+                                                if b"Starting Home Assistant" in line
+                                            ),
+                                            None,
+                                        )
+                                        is not None
+                                    )
                                     if startup_completion_marker_found:
                                         # Startup completed
                                         hass_startup_result = "ok"
@@ -239,14 +289,20 @@ class HaCtl:
                         selector.close()
 
                     result_descriptions: Dict[StartupResult, str] = {
-                        "timeout": f"Timeout. Didn't receive any logs for {read_timeout}s",
-                        "crash": f"HA process exited unexpectedly",
-                        "ok": f"HA successfully started up"
+                        "timeout": (
+                            f"Timeout. Didn't receive any logs for {read_timeout}s"
+                        ),
+                        "crash": "HA process exited unexpectedly",
+                        "ok": "HA successfully started up",
                     }
                     self.log(result_descriptions[hass_startup_result])
                     if hass_startup_result == "crash":
-                        self.log(Padding(log.getvalue().decode(
-                            'utf-8', 'ignore'), pad=(0, 0, 0, 3)))
+                        self.log(
+                            Padding(
+                                log.getvalue().decode("utf-8", "ignore"),
+                                pad=(0, 0, 0, 3),
+                            )
+                        )
                 finally:
                     # Ask HA to terminate if it is still running
                     if proc.poll() is None:
@@ -274,50 +330,77 @@ class HaCtl:
             self.current_task_logger = None
 
     def log(self, renderable):
-        assert(self.current_task_logger is not None)
+        assert self.current_task_logger is not None
         self.current_task_logger.log(renderable)
 
     def mark_no_changes(self):
-        assert(self.current_task_logger is not None)
+        assert self.current_task_logger is not None
         self.current_task_logger.mark_no_changes()
 
-    def run_command(self, command: List[str], reset_pythonpath=True, catch_output=True, raise_on_error=True) -> subprocess.CompletedProcess[bytes]:
+    def run_command(
+        self,
+        command: List[str],
+        reset_pythonpath=True,
+        catch_output=True,
+        raise_on_error=True,
+    ) -> subprocess.CompletedProcess[bytes]:
         if reset_pythonpath:
             # Forbid using non-virtualenv packages
-            subprocess_env = {k: v for k,
-                              v in os.environ.items() if k != 'PYTHONPATH'}
+            subprocess_env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
         else:
             subprocess_env = None
 
         if catch_output:
-            result = subprocess.run(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT, check=False, env=subprocess_env)
+            result = subprocess.run(
+                command,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                check=False,
+                env=subprocess_env,
+            )
         else:
             result = subprocess.run(
-                command, stdin=subprocess.DEVNULL, check=False, env=subprocess_env)
+                command, stdin=subprocess.DEVNULL, check=False, env=subprocess_env
+            )
 
         if result.returncode == 0 or not raise_on_error:
             return result
 
         self.log(
-            f"Command [red]{escape(shlex.join(command))}[/] exited with exit code [red]{result.returncode}[/]")
+            f"Command [red]{escape(shlex.join(command))}[/] exited with exit code"
+            f" [red]{result.returncode}[/]"
+        )
         if result.stdout is not None:
-            self.log(Padding(escape(result.stdout.decode(
-                'utf-8', errors='ignore')), pad=(0, 0, 0, 2)))
+            self.log(
+                Padding(
+                    escape(result.stdout.decode("utf-8", errors="ignore")),
+                    pad=(0, 0, 0, 2),
+                )
+            )
         raise TaskException()
 
     def build_hass_command(self, args: List[str], config_dir=None):
-        return [str(HASS_VENV_DIR.joinpath("bin", "hass")), "-c", str(HASS_CONFIG_ROOT) if config_dir is None else config_dir, *args]
+        return [
+            str(HASS_VENV_DIR.joinpath("bin", "hass")),
+            "-c",
+            str(HASS_CONFIG_ROOT) if config_dir is None else config_dir,
+            *args,
+        ]
 
     def ensure_hass_config(self):
         with self.task("Ensuring Home Assistant configuration exists"):
             configuration_dir_exists = HASS_CONFIG_ROOT.exists()
-            configuration_files_are_present = self.run_command(self.build_hass_command(
-                ["--script", "ensure_config"]), raise_on_error=False).returncode == 0
+            configuration_files_are_present = (
+                self.run_command(
+                    self.build_hass_command(["--script", "ensure_config"]),
+                    raise_on_error=False,
+                ).returncode
+                == 0
+            )
 
             if not configuration_dir_exists or not configuration_files_are_present:
-                self.run_command(self.build_hass_command(
-                    ["--script", "ensure_config"]))
+                self.run_command(self.build_hass_command(["--script", "ensure_config"]))
             else:
                 self.mark_no_changes()
 
@@ -325,26 +408,34 @@ class HaCtl:
         username = "dev"
         password = "dev"
         with self.task(f"Creating user [blue]{escape(username)}[/]"):
-            user_already_added = self.run_command(self.build_hass_command(
-                ["--script", "auth", "validate", username, password]), raise_on_error=False).returncode == 0
+            user_already_added = (
+                self.run_command(
+                    self.build_hass_command(
+                        ["--script", "auth", "validate", username, password]
+                    ),
+                    raise_on_error=False,
+                ).returncode
+                == 0
+            )
             if user_already_added:
                 self.mark_no_changes()
                 return
 
-            self.run_command(self.build_hass_command(
-                ["--script", "auth", "add", username, password]))
+            self.run_command(
+                self.build_hass_command(["--script", "auth", "add", username, password])
+            )
 
     def bypass_onboarding(self):
-        with self.task(f"Bypassing onboarding"):
+        with self.task("Bypassing onboarding"):
             DOT_STORAGE_DIRECTORY.mkdir(exist_ok=True)
-            onboarding_data_file = HASS_CONFIG_ROOT.joinpath(
-                '.storage/onboarding')
+            onboarding_data_file = HASS_CONFIG_ROOT.joinpath(".storage/onboarding")
 
             if onboarding_data_file.exists():
                 self.mark_no_changes()
                 return
 
-            onboarding_data_file.write_text("""
+            onboarding_data_file.write_text(
+                """
             {
                 "data": {
                     "done": [
@@ -356,10 +447,12 @@ class HaCtl:
                 "key": "onboarding",
                 "version": 3
             }
-            """, encoding='utf-8')
+            """,
+                encoding="utf-8",
+            )
 
     def download_lovelace_plugins(self):
-        with self.task(f"Downloading lovelace plugins"):
+        with self.task("Downloading lovelace plugins"):
             WORKSPACE_DIRECTORY.mkdir(exist_ok=True, parents=True)
 
             if len(LOVELACE_PLUGINS) == 0:
@@ -369,7 +462,7 @@ class HaCtl:
             n_downloads = 0
             n_failures = 0
             for plugin in LOVELACE_PLUGINS:
-                author, repo = plugin.split('/')
+                author, repo = plugin.split("/")
                 file = repo.removeprefix("lovelace-")
                 file_path = WORKSPACE_DIRECTORY.joinpath(file + ".js")
                 self.plugins_js_files.append(file_path)
@@ -379,11 +472,12 @@ class HaCtl:
 
                 # Determine where to search for .js files
                 # HEAD means the default branch
+                # pylint: disable=line-too-long
                 possible_download_urls = [
-                    f"https://raw.githubusercontent.com/{author}/{repo}/HEAD/{file}.js",
-                    f"https://raw.githubusercontent.com/{author}/{repo}/HEAD/dist/{file}.js",
-                    f"https://github.com/{author}/{repo}/releases/latest/download/{file}.js",
-                    f"https://github.com/{author}/{repo}/releases/latest/download/{file}-bundle.js"
+                    f"https://raw.githubusercontent.com/{author}/{repo}/HEAD/{file}.js",  # noqa: E501
+                    f"https://raw.githubusercontent.com/{author}/{repo}/HEAD/dist/{file}.js",  # noqa: E501
+                    f"https://github.com/{author}/{repo}/releases/latest/download/{file}.js",  # noqa: E501
+                    f"https://github.com/{author}/{repo}/releases/latest/download/{file}-bundle.js",  # noqa: E501
                 ]
 
                 # Find file by examining every url
@@ -400,11 +494,11 @@ class HaCtl:
 
                 # All urls failed
                 if content is None:
-                    self.log(
-                        f"[red]Failed to download [blue]{escape(plugin)}[/][/]")
-                    for download_url, code in zip(possible_download_urls, response_status_codes):
-                        self.log(
-                            f"[red]HTTP {code} - [blue]{download_url}[/blue]")
+                    self.log(f"[red]Failed to download [blue]{escape(plugin)}[/][/]")
+                    for download_url, code in zip(
+                        possible_download_urls, response_status_codes
+                    ):
+                        self.log(f"[red]HTTP {code} - [blue]{download_url}[/blue]")
                     n_failures += 1
                     continue
 
@@ -419,24 +513,27 @@ class HaCtl:
 
     def generate_lovelace_resources(self):
         with self.task("Generating Lovelace resources list"):
-            paths = [str(file.relative_to(WORKSPACE_DIRECTORY))
-                     for file in self.plugins_js_files]
+            paths = [
+                str(file.relative_to(WORKSPACE_DIRECTORY))
+                for file in self.plugins_js_files
+            ]
             config = {
                 "data": {
-                    "items": [{
-                        "id": f"{i}",
-                        "type": "module",
-                        "url": f"{p}"
-                    } for i, p in enumerate(paths)]
+                    "items": [
+                        {"id": f"{i}", "type": "module", "url": f"{p}"}
+                        for i, p in enumerate(paths)
+                    ]
                 },
                 "key": "lovelace_resources",
-                "version": 1
+                "version": 1,
             }
 
-            lovelace_config_file = DOT_STORAGE_DIRECTORY.joinpath(
-                "lovelace_resources")
-            lovelace_config_file_content = lovelace_config_file.read_text(
-                'utf-8') if lovelace_config_file.exists() else None
+            lovelace_config_file = DOT_STORAGE_DIRECTORY.joinpath("lovelace_resources")
+            lovelace_config_file_content = (
+                lovelace_config_file.read_text("utf-8")
+                if lovelace_config_file.exists()
+                else None
+            )
             new_config_as_text = json.dumps(config)
 
             if new_config_as_text == lovelace_config_file_content:
@@ -444,24 +541,25 @@ class HaCtl:
                 return
 
             self.log(f"{len(self.plugins_js_files)} plugin(s) found")
-            lovelace_config_file.write_text(json.dumps(config), 'utf-8')
+            lovelace_config_file.write_text(json.dumps(config), "utf-8")
 
     def download_hacs(self):
         with self.task("Downloading HACS"):
-            hacs_dest_dir = HASS_CONFIG_ROOT.joinpath('custom_components/hacs')
+            hacs_dest_dir = HASS_CONFIG_ROOT.joinpath("custom_components/hacs")
             if hacs_dest_dir.exists():
                 self.mark_no_changes()
                 return
 
-            hacs_fetch_url = 'https://github.com/hacs/integration/releases/latest/download/hacs.zip'
+            hacs_fetch_url = (
+                "https://github.com/hacs/integration/releases/latest/download/hacs.zip"
+            )
             response = requests.get(hacs_fetch_url)
             if 200 <= response.status_code < 299:
                 hacs_dest_dir.mkdir(parents=True, exist_ok=True)
                 with zipfile.ZipFile(BytesIO(response.content)) as zip:
                     zip.extractall(hacs_dest_dir)
             else:
-                self.log(
-                    f"HTTP {response.status_code} - {escape(hacs_fetch_url)}")
+                self.log(f"HTTP {response.status_code} - {escape(hacs_fetch_url)}")
                 raise TaskException()
 
     def run_hass(self):
@@ -488,5 +586,5 @@ def main():
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
