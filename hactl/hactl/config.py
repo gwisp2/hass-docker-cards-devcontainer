@@ -8,8 +8,8 @@ from pydantic_yaml import YamlModel
 class HactlPaths(
     BaseModel, extra=Extra.forbid
 ):  # pylint: disable=too-few-public-methods
-    venv: Path = Path.home() / "hass-venv"
-    data: Path = Path.home() / "hass-data"
+    venv: Path
+    data: Path
 
 
 class UserCredentials(
@@ -22,14 +22,14 @@ class UserCredentials(
 class LovelaceConfig(
     BaseModel, extra=Extra.forbid
 ):  # pylint: disable=too-few-public-methods
-    plugins: List[str] = []
-    extra_files: List[Path] = []
+    plugins: List[str]
+    extra_files: List[Path]
 
 
 class HactlConfig(
     YamlModel, extra=Extra.forbid
 ):  # pylint: disable=too-few-public-methods
-    paths: HactlPaths = HactlPaths()
-    user: UserCredentials = UserCredentials(name="dev", password="dev")
-    lovelace: LovelaceConfig = LovelaceConfig()
+    paths: HactlPaths
+    user: UserCredentials
+    lovelace: LovelaceConfig
     version: Optional[str]

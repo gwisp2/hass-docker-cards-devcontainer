@@ -31,8 +31,6 @@ class TaskContextImpl(TaskContext):
     def __init__(self, console: Console) -> None:
         super().__init__()
         self.console = console
-        self.console.clear_live()  # Clear any previous Live
-
         self._title = ""
         self._status: TaskContext.Status = "running"
         self._output: Group = Group()
@@ -59,7 +57,12 @@ class TaskContextImpl(TaskContext):
             raise ValueError("Can't set 'running' status")
         self._status = status
         self._update_output_header()
+
         self._live.stop()
+
+        if not self.console.is_terminal:
+            # Due to bug Live doesn't insert LF when printing to non-terminal
+            self.console.line()
 
     def status(self) -> TaskContext.Status:
         return self._status
