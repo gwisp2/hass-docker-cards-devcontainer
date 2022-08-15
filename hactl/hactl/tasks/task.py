@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, final
 
+from rich.console import RenderableType
+
+from .commons import TaskException
 from .task_context import TaskContext
 
 
@@ -13,23 +16,31 @@ class Task(ABC):
         self.name = name
         self.context = None
 
-    def execute(self, context: TaskContext):
+    @final
+    def execute(self, context: TaskContext) -> None:
         self._context = context
+        self._context.set_title(self.name)
         try:
             self.run()
-            self._complete("changed")
+            self._complete("ok")
         except KeyboardInterrupt:
             self._complete("cancelled")
-            raise
-        except Exception:
+        except TaskException as exc:
+            self.log(exc.message)
             self._complete("failed")
-            raise
+        except Exception as exc:  # pylint: disable=broad-except
+            self.log("Unknown exception")
+            self.log(str(exc))
+            self._complete("failed")
 
     @abstractmethod
-    def run(self):
+    def run(self) -> None:
         ...
 
-    def _complete(self, status: TaskContext.Status):
+    def log(self, renderable: RenderableType) -> None:
         assert self._context is not None
-        if self._context.status() == "running":
-            self._context.set_status(status)
+        self._context.log(renderable)
+
+    def _complete(self, status: TaskContext.Status) -> None:
+        assert self._context is not None
+        self._context.complete_with_status(status)
