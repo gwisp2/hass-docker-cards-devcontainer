@@ -64,5 +64,9 @@ def run_command(
     )
 
 
-def run_hass_command(venv: Path, data_path: Path, args: List[Union[str, Path]]) -> None:
-    run_command([venv / "bin" / "hass", "-c", data_path, *args])
+def run_hass_command(
+    venv: Path, data_path: Path, script_name: str, args: List[Union[str, Path]]
+) -> None:
+    run_command(
+        [venv / "bin" / "hass", "--script", script_name, "-c", data_path, *args]
+    )

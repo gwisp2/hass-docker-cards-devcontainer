@@ -11,6 +11,7 @@ requests = "^2.28.1"
 rich = "^12.5.1"
 pydantic = "^1.9.2"
 pydantic-yaml = {extras = ["ruamel"], version = "^0.8.0"}
+textual = "^0.1.18"
 
 [tool.isort]
 profile = "black"

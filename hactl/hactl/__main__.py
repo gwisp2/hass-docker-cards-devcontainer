@@ -3,14 +3,13 @@
 
 import argparse
 import sys
-from functools import reduce
 from pathlib import Path
-from typing import Any, List
+from typing import List, Literal
 
 from rich.console import Console
-from ruamel.yaml import YAML
 
-from hactl.config import HactlConfig
+from hactl.config import DirConfigSource, FilesConfigSource
+from hactl.ha_runner import HaRunner
 from hactl.tasks import (
     BypassOnboardingTask,
     CreateHassUserTask,
@@ -22,26 +21,23 @@ from hactl.tasks import (
     TaskContextImpl,
 )
 
+from .tasks.task import Task
 
-def merge_configs(lhs: Any, rhs: Any) -> Any:
-    if isinstance(lhs, dict):
-        if not isinstance(rhs, dict):
-            raise ValueError("Can't merge {rhs} into {lhs}")
+CMD_SETUP = "setup"
+CMD_CONFIGURE = "configure"
+CMD_RUN = "run"
+CMD_TYPES = [CMD_SETUP, CMD_CONFIGURE, CMD_RUN]
+CmdType = Literal["setup", "configure", "run"]
 
-        result = dict(lhs)
-        for key, value in rhs.items():
-            c1v = lhs.get(key)
-            if c1v is not None:
-                value = merge_configs(c1v, value)
-            result[key] = value
-        return result
 
-    if isinstance(lhs, list):
-        if not isinstance(rhs, list):
-            raise ValueError("Can't merge {rhs} into {lhs}")
-        return [*lhs, *rhs]
+def perform_tasks(console: Console, tasks: List[Task]) -> None:
+    for task in tasks:
+        ctx = TaskContextImpl(console)
+        task.execute(ctx)
 
-    return rhs
+        if ctx.status() != "ok":
+            # Early exit on failure
+            sys.exit(1)
 
 
 def main() -> None:
@@ -58,53 +54,44 @@ def main() -> None:
         type=Path,
         help="configuration file",
     )
-    parser.add_argument("-v", action="store_true")
+    parser.add_argument("command", type=str, choices=CMD_TYPES)
+
     args = parser.parse_args()
     config_paths: List[Path] = args.configs
-    verbose: bool = args.v
+    command: CmdType = args.command
 
     # Use default config_paths if not defined
     if config_paths is None:
-        default_config_root = "/etc/hactl"
-        config_paths = list(Path("/etc/hactl").glob("*"))
+        default_config_root = Path("/etc/hactl")
+        config_paths = list(default_config_root.glob("*"))
         if len(config_paths) == 0:
             console.print(f"No configuration found in [blue]{default_config_root}[/]")
             console.print("Add some files there or use -c to provide config paths")
             sys.exit(2)
-            return
-
-    # Read config files
-    yaml = YAML()
-    configs = []
-    for config_path in config_paths:
-        configs.append(yaml.load(config_path.read_text("utf-8")))
-
-    # Merge configs & print merged config
-    merged_config = reduce(merge_configs, configs)
-    if verbose:
-        console.print("Config:")
-        console.print_json(data=merged_config)
+        config_source = DirConfigSource(default_config_root)
+    else:
+        config_source = FilesConfigSource(config_paths)
 
     # Convert config to Config class
-    cfg = HactlConfig(**merged_config)
-
-    tasks = [
-        InstallHaTask(cfg),
-        EnsureHassConfigExistsTask(cfg),
-        CreateHassUserTask(cfg),
-        BypassOnboardingTask(cfg),
-        SetupLovelaceTask(cfg),
-        InstallHacsTask(cfg),
-        DryRunHassTask(cfg),
-    ]
-
-    for task in tasks:
-        ctx = TaskContextImpl(console)
-        task.execute(ctx)
-
-        if ctx.status() != "ok":
-            # Early exit on failure
-            sys.exit(1)
+    if command == CMD_SETUP:
+        cfg = config_source.load_config()
+        tasks = [
+            InstallHaTask(cfg),
+            EnsureHassConfigExistsTask(cfg),
+            CreateHassUserTask(cfg),
+            BypassOnboardingTask(cfg),
+            SetupLovelaceTask(cfg),
+            InstallHacsTask(cfg),
+            DryRunHassTask(cfg),
+        ]
+        perform_tasks(console, tasks)
+    elif command == CMD_CONFIGURE:
+        cfg = config_source.load_config()
+        tasks = [SetupLovelaceTask(cfg)]
+        perform_tasks(console, tasks)
+    elif command == CMD_RUN:
+        runner = HaRunner(config_source, console)
+        runner.run()
 
 
 if __name__ == "__main__":

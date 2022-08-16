@@ -18,27 +18,27 @@ class SetupLovelaceTask(Task):
 
     def run(self) -> None:
         # Download Lovelace plugins
-        workspace_path = self.cfg.paths.data / "www" / "workspace"
-        workspace_path.mkdir(exist_ok=True, parents=True)
+        www_path = self.cfg.paths.data / "www"
+        www_path.mkdir(exist_ok=True)
 
         # Download plugins from github
         downloaded_file_paths = self._download_plugins(
-            self.cfg.lovelace.plugins, workspace_path
+            self.cfg.lovelace.plugins, www_path
         )
 
         # Generate resources
         self._generate_resources_list(
-            downloaded_file_paths, self.cfg.lovelace.extra_files, workspace_path
+            downloaded_file_paths, self.cfg.lovelace.extra_files, www_path
         )
 
-    def _download_plugins(self, plugins: List[str], workspace_path: Path) -> List[Path]:
+    def _download_plugins(self, plugins: List[str], www_path: Path) -> List[Path]:
         js_module_paths: List[Path] = []
 
         n_failures = 0
         for plugin in plugins:
             author, repo = plugin.split("/")
             filename = repo.removeprefix("lovelace-")
-            file_path = workspace_path / (filename + ".js")
+            file_path = www_path / (filename + ".js")
             js_module_paths.append(file_path)
 
             if file_path.exists():
@@ -99,7 +99,7 @@ class SetupLovelaceTask(Task):
         # Paths for downloaded plugins
         paths = [str(file.relative_to(workspace_path)) for file in js_module_paths]
         # Local paths
-        paths.extend([str(Path("./local") / f) for f in extra_files])
+        paths.extend([str(Path("./workspace") / f) for f in extra_files])
 
         self.log(f"{len(paths)} module(s) for Lovelace found")
         config = {
