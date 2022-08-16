@@ -4,10 +4,10 @@ Devcontainer for development of Lovelace cards for Home Assistant.
 
 Features:
 1. Automatic download of Lovelace cards from GitHub
-2. Automatic generation of lovelace resources list
+2. Automatic generation of Lovelace resources list
 3. Easy to restart HA, just stop HA with `Ctrl+C` and select 'start HA', that feature can be useful when using custom components.
 4. Preinstalled HACS
-5. Can be used offline. HA downloads extra packages on the first run, and the first run is made done building this image.
+5. Can be used offline. HA downloads extra packages on the first run, and the first run is made done when building this image.
 
 ## Example usage
 
