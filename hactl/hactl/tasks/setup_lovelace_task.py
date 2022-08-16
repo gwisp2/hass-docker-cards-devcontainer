@@ -97,9 +97,12 @@ class SetupLovelaceTask(Task):
     ) -> None:
         # Generate configuration
         # Paths for downloaded plugins
-        paths = [str(file.relative_to(workspace_path)) for file in js_module_paths]
+        paths = [
+            str(Path("local") / file.relative_to(workspace_path))
+            for file in js_module_paths
+        ]
         # Local paths
-        paths.extend([str(Path("./workspace") / f) for f in extra_files])
+        paths.extend([str(Path("./local/workspace") / f) for f in extra_files])
 
         self.log(f"{len(paths)} module(s) for Lovelace found")
         config = {
