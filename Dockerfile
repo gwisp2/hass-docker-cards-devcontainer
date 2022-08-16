@@ -34,7 +34,13 @@ RUN --mount=type=cache,target=/var/cache/apt \
     && pip install --upgrade wheel pip
 
 # Install some npm packages globally
-RUN npm install -g ts-node
+RUN npm install --location=global ts-node
+
+# Temporarily install playwright, we can't install it globally because it requires root access,
+# but npm drops root to 1001 user when running install scripts.
+# Also because of that we need a sudoer user when installing browsers & dependencies for playwright.
+RUN sudo -u vscode /bin/bash -c 'set -e; . /etc/profile; mkdir /tmp/playwright && cd /tmp/playwright && \
+    npm install playwright && npx playwright install-deps && npx playwright install && rm -rf /tmp/playwright'
 
 # Copy and install hactl - HA setup & run helper
 RUN --mount=type=cache,target=/root/.cache pip install poetry poethepoet
