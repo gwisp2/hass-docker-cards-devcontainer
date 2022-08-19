@@ -3,12 +3,12 @@
 Devcontainer for development of Lovelace cards for Home Assistant.
 
 Features:
-1. Automatic download of Lovelace cards from GitHub
-2. Automatic generation of Lovelace resources list
-3. Easy to restart HA, just stop HA with `Ctrl+C` and select 'start HA', that feature can be useful when using custom components.
-4. Preinstalled HACS
-5. Can be used offline. HA downloads extra packages on the first run, and the first run is made done when building this image.
-6. Preinstalled Playwright dependencies & browsers
+1. Components
+    - automatic download of third-party Lovelace cards from Github
+    - automatic generation of Lovelace resources list
+    - HACS is preinstalled
+3. Instantaneous startup: usually HA downloads different stuff on the first run, and in this image, everything is already downloaded for you.
+4. Preinstalled Playwright dependencies & browsers. Useful if you want to make screenshots of your custom cards.
 
 ## Example usage
 
@@ -16,13 +16,13 @@ Features:
 ```json
 {
     "image": "gwisp2/hass-docker-cards-devcontainer:latest",
-    "postStartCommand": "sudo hactl run",
+    "postStartCommand": "hactl run",
     "forwardPorts": [
         8123
     ],
     "mounts": [
         // Mount your workspace directory
-        "source=${localWorkspaceFolder},target=/opt/hass/data/www/workspace,type=bind",
+        "source=${localWorkspaceFolder},target=/hdata/www/workspace,type=bind",
 
         // Mount file with additional configuration
         "source=${localWorkspaceFolder}/.devcontainer/02-custom.yaml,target=/etc/hactl/02-lovelace.yaml,type=bind"
@@ -40,9 +40,9 @@ lovelace:
 ## Paths
 | Path             |  Purpose      |
 |-----------------:|:--------------|
-| /opt/hass/data   | HA data (aka config) directory |
-| /opt/hass/venv   | venv where HA is installed |
-| /opt/hactl/.venv | venv where hactl is installed, hactl is an utility that controls HA   |
+| /hdata   | HA data (aka config) directory |
+| /henv   | venv where HA is installed |
+| /hactl/.venv | venv where hactl is installed, hactl is an utility that controls HA   |
 | /usr/bin/hactl   | hactl symlink, links to hactl executable inside venv |
 
 Probably you want to mount `configuration.yaml` or `ui-lovelace.yaml` inside `/opt/hass/data/`.

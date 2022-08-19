@@ -37,24 +37,28 @@ RUN --mount=type=cache,target=/var/cache/apt \
 # Install some npm packages globally
 RUN npm install --location=global ts-node
 
+# Create directories owned by vscode
+RUN install -d -m 0755 -o vscode -g vscode /henv /hdata /hactl /etc/hactl
+
+# Do consequent setup with vscode user
+USER vscode
+
 # Temporarily install playwright, we can't install it globally because it requires root access,
 # but npm drops root to 1001 user when running install scripts.
 # Also because of that we need a sudoer user when installing browsers & dependencies for playwright.
-RUN sudo -u vscode /bin/bash -c 'set -e; . /etc/profile; mkdir /tmp/playwright && cd /tmp/playwright && \
-    npm install playwright && npx playwright install-deps && npx playwright install && rm -rf /tmp/playwright'
+RUN set -e; . /etc/profile; mkdir /tmp/playwright && cd /tmp/playwright && \
+    npm install playwright && npx playwright install-deps && npx playwright install && rm -rf /tmp/playwright
 
 # Copy and install hactl - HA setup & run helper
-RUN --mount=type=cache,target=/root/.cache pip install poetry poethepoet
-COPY hactl /opt/hactl
-RUN --mount=type=cache,target=/root/.cache cd /opt/hactl && poetry install && ln -s /opt/hactl/.venv/bin/hactl /usr/bin/hactl && mkdir /etc/hactl
+RUN --mount=type=cache,target=/home/root/.cache sudo -H pip install poetry poethepoet
+COPY hactl /hactl
+RUN --mount=type=cache,target=/home/vscode/.cache,uid=1000,gid=1000 cd /hactl && poetry install && sudo ln -s /hactl/.venv/bin/hactl /usr/bin/hactl
 
 # Install Home Assitant
 COPY 01-defaults.yml /etc/hactl/
-RUN mkdir -p /opt/hass
-RUN --mount=type=cache,target=/root/.cache hactl setup
+RUN --mount=type=cache,target=/home/vscode/.cache,uid=1000,gid=1000 hactl setup
 
 EXPOSE 8123
 
 VOLUME /config
-USER vscode
-CMD sudo hactl configure && sudo hactl run
+CMD hactl run

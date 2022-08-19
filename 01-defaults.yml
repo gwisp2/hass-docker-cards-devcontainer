@@ -1,8 +1,8 @@
 # Defaults for hactl
 # Copied into /etc/hactl/01-defaults.yml
 paths:
-  venv: /opt/hass/venv
-  data: /opt/hass/data
+  venv: /henv
+  data: /hdata
 user:
   name: dev
   password: dev
