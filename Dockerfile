@@ -28,6 +28,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
         libtiff5 \
         libturbojpeg0 \
         tzdata \
+        sqlite3 \
     && rm -rf /var/lib/apt/lists/* \
     && source /usr/local/share/nvm/nvm.sh \
     && nvm install 16 \
