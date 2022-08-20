@@ -12,6 +12,7 @@ rich = "^12.5.1"
 pydantic = "^1.9.2"
 pydantic-yaml = {extras = ["ruamel"], version = "^0.8.0"}
 textual = "^0.1.18"
+debugpy = "^1.6.3"
 
 [tool.isort]
 profile = "black"

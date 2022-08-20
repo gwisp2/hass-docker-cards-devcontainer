@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
-
 import argparse
 import sys
 from pathlib import Path
 from typing import List, Literal
 
+import debugpy
 from rich.console import Console
 
 from hactl.config import DirConfigSource, FilesConfigSource
@@ -40,7 +40,13 @@ def perform_tasks(console: Console, tasks: List[Task]) -> None:
             sys.exit(1)
 
 
+def start_debug_adapter() -> None:
+    debugpy.listen(5678)
+
+
 def main() -> None:
+    start_debug_adapter()
+
     console = Console(highlight=False)
 
     # Parse command-line arguments

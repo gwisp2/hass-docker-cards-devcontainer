@@ -165,10 +165,20 @@ class HaRunner:  # pylint: disable=too-few-public-methods
     @contextlib.contextmanager
     def _start_hass(self) -> Generator[subprocess.Popen[bytes], None, None]:
         assert self.cfg is not None
-        hass_path = self.cfg.paths.venv / "bin" / "hass"
+
+        # Important: use python -m homeassistant.__main__ instead of running bin/hass
+        # debugpy can't understand to inject into the subprocess in the latter case
+        python_path = self.cfg.paths.venv / "bin" / "python"
         subprocess_env = dict(os.environ)
         subprocess_env.pop("PYTHONPATH", None)
-        hass_command = [str(hass_path), "-c", str(self.cfg.paths.data), "-v"]
+        hass_command = [
+            str(python_path),
+            "-m",
+            "homeassistant.__main__",
+            "-c",
+            str(self.cfg.paths.data),
+            "-v",
+        ]
 
         with subprocess.Popen(
             hass_command,
