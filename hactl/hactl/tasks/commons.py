@@ -1,12 +1,22 @@
+import fcntl
 import os
 import shlex
 import subprocess
 from pathlib import Path, PurePath
-from typing import List, Union
+from typing import List, Protocol, TypeAlias, Union
 
 from rich.console import Group, RenderableType
 from rich.markup import escape
 from rich.padding import Padding
+
+
+class HasFileno(Protocol):  # pylint: disable=too-few-public-methods
+    def fileno(self) -> int:
+        ...
+
+
+FileDescriptor: TypeAlias = int
+FileDescriptorLike: TypeAlias = Union[int, HasFileno]
 
 
 class TaskException(Exception):
@@ -70,3 +80,20 @@ def run_hass_command(
     run_command(
         [venv / "bin" / "hass", "--script", script_name, "-c", data_path, *args]
     )
+
+
+def make_nonblocking(out: FileDescriptorLike) -> None:
+    pipe_fd = out if isinstance(out, int) else out.fileno()
+    pipe_fl = fcntl.fcntl(pipe_fd, fcntl.F_GETFL)
+    fcntl.fcntl(pipe_fd, fcntl.F_SETFL, pipe_fl | os.O_NONBLOCK)
+
+
+class LineTracker:  # pylint: disable=too-few-public-methods
+    def __init__(self) -> None:
+        self.current_line_fragment = b""
+
+    def lines(self, data: bytes) -> List[bytes]:
+        lines = data.split(b"\n")
+        lines[0] = self.current_line_fragment + lines[0]
+        self.current_line_fragment = lines[-1]
+        return lines[:-1]

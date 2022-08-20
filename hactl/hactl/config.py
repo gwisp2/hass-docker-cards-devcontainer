@@ -1,9 +1,10 @@
+import re
 from abc import ABC, abstractmethod
 from functools import reduce
 from pathlib import Path
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, Extra
+from pydantic import BaseModel, Extra, Field
 from pydantic_yaml import YamlModel
 from ruamel.yaml import YAML
 
@@ -29,6 +30,28 @@ class LovelaceConfig(
     extra_files: List[Path]
 
 
+class LoggingColorRule(BaseModel, extra=Extra.forbid, arbitrary_types_allowed=True):
+    pattern: re.Pattern[str] = re.compile("")  # Silence pydantic
+    line_color: str = Field(regex="^[a-z]+$")
+
+    def __init__(self, **data: Any) -> None:
+        pattern: str = data["pattern"]
+        del data["pattern"]
+        super().__init__(**data)
+        self.pattern = re.compile(pattern)
+
+
+class LoggingConfig(
+    BaseModel, extra=Extra.forbid
+):  # pylint: disable=too-few-public-methods
+    colors: List[LoggingColorRule] = []
+
+    def color_for_line(self, line: str) -> Optional[str]:
+        return next(
+            (c.line_color for c in self.colors if c.pattern.fullmatch(line)), None
+        )
+
+
 class HactlConfig(
     YamlModel, extra=Extra.forbid
 ):  # pylint: disable=too-few-public-methods
@@ -36,6 +59,7 @@ class HactlConfig(
     user: UserCredentials
     lovelace: LovelaceConfig
     version: Optional[str]
+    logging: LoggingConfig
 
 
 class ConfigSource(ABC):  # pylint: disable=too-few-public-methods

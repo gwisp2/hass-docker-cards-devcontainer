@@ -1,4 +1,3 @@
-import fcntl
 import os
 import subprocess
 import tempfile
@@ -10,7 +9,7 @@ from typing import IO, Dict, Literal, Optional, Tuple
 from rich.padding import Padding
 
 from hactl.config import HactlConfig
-from hactl.tasks.commons import TaskException
+from hactl.tasks.commons import LineTracker, TaskException, make_nonblocking
 
 from .task import Task
 
@@ -34,7 +33,7 @@ class DryRunHassTask(Task):
             # Start HA
             hass_command = [str(hass_path), "-c", str(tmp_dir), "-v"]
 
-            # pylint: disable=consider-using-with
+            # pylint: disable=consider-using-with,duplicate-code
             proc = subprocess.Popen(
                 hass_command,
                 env=subprocess_env,
@@ -82,59 +81,31 @@ class DryRunHassTask(Task):
                 raise TaskException("Task failed")
 
     @staticmethod
-    def _make_nonblocking(out: IO[bytes]) -> None:
-        pipe_fd = out.fileno()
-        pipe_fl = fcntl.fcntl(pipe_fd, fcntl.F_GETFL)
-        fcntl.fcntl(pipe_fd, fcntl.F_SETFL, pipe_fl | os.O_NONBLOCK)
-
-    @staticmethod
     def _wait_for_line(
         line_to_wait_for: bytes,
         out: IO[bytes],
         read_timeout: int,
     ) -> Tuple[LineWaitResult, bytes]:
-        DryRunHassTask._make_nonblocking(out)
+        make_nonblocking(out)
         startup_result: Optional[DryRunHassTask.LineWaitResult] = None
 
         # Scan logs
-        unprocessed_bytes = b""
+        line_tracker = LineTracker()
         log = BytesIO()
-        selector = DefaultSelector()
-        selector.register(out, EVENT_READ)
-        try:
+        with DefaultSelector() as selector:
+            selector.register(out, EVENT_READ)
             while startup_result is None:
-                events_list = selector.select(read_timeout)
-                if len(events_list) == 0:
+                if len(selector.select(read_timeout)) == 0:
                     # Timeout
                     startup_result = "timeout"
                 else:
-                    bytes_read = out.read()
-                    log.write(bytes_read)
-
-                    if len(bytes_read) == 0:
+                    data = out.read()
+                    if len(data) == 0:
                         # EOF
                         startup_result = "crash"
                     else:
-                        # Process bytes
-                        last_bytes = unprocessed_bytes + bytes_read
-                        lines = last_bytes.split(b"\n")
-
-                        # Search for line_to_wait_for
-                        line_found = (
-                            next(
-                                (line for line in lines if line_to_wait_for in line),
-                                None,
-                            )
-                            is not None
-                        )
-
-                        if line_found:
-                            # Startup completed
+                        log.write(data)
+                        lines = line_tracker.lines(data)
+                        if any(line_to_wait_for in line for line in lines):
                             startup_result = "ok"
-
-                        # Remember uncompleted line
-                        unprocessed_bytes = lines[-1]
-        finally:
-            selector.close()
-
         return (startup_result, log.getvalue())

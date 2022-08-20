@@ -9,3 +9,9 @@ user:
 lovelace:
   plugins: []
   extra_files: []
+logging:
+  colors:
+    - pattern: '.*ERROR.*'
+      line_color: red
+    - pattern: '.*WARNING.*'
+      line_color: yellow

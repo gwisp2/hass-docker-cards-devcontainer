@@ -1,9 +1,14 @@
+import contextlib
 import os
 import signal
 import subprocess
 import sys
 import termios
-from typing import Any, List, Literal, Optional
+from datetime import datetime, timedelta
+from multiprocessing import Pipe
+from selectors import EVENT_READ, DefaultSelector
+from types import FrameType
+from typing import Any, Generator, List, Literal, Optional
 
 from rich.console import Console
 from rich.markdown import Markdown
@@ -12,6 +17,7 @@ from rich.markup import escape
 from hactl.tasks import SetupLovelaceTask, TaskContextImpl
 
 from .config import ConfigSource, DirConfigSource, FilesConfigSource, HactlConfig
+from .tasks.commons import FileDescriptorLike, LineTracker, make_nonblocking
 
 
 class HaRunner:  # pylint: disable=too-few-public-methods
@@ -20,27 +26,32 @@ class HaRunner:  # pylint: disable=too-few-public-methods
     def __init__(self, cfg_source: ConfigSource, console: Console) -> None:
         self.cfg_source = cfg_source
         self.console = console
-        self.proc: Optional[subprocess.Popen[bytes]] = None
         self.old_terminal_state: Optional[List[Any]]
         self.cfg: Optional[HactlConfig] = None
+        self.sigint_tracker = SigintTracker()
+
         self._reload_config(verbose=False)
 
     def run(self) -> None:
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        signal.signal(signal.SIGINT, self.sigint_tracker.handle_sigint)
         self._configure_stdin()
 
-        if self.cfg is not None:
-            self._run_hass()
-
-        while True:
-            next_action = self._prompt_next_action()
-            if next_action == "quit":
-                self._reset_terminal()
-                return
-            if next_action == "reload_config":
-                self._reload_config()
-            elif next_action == "start":
+        try:
+            if self.cfg is not None:
                 self._run_hass()
+
+            while True:
+                next_action = self._prompt_next_action()
+                if next_action == "quit":
+                    self._reset_terminal()
+                    return
+                if next_action == "reload_config":
+                    self._reload_config()
+                elif next_action == "start":
+                    self._run_hass()
+        finally:
+            # Restore old terminal settings
+            self._reset_terminal()
 
     def _reload_config(self, verbose: bool = True) -> bool:
         try:
@@ -98,23 +109,128 @@ class HaRunner:  # pylint: disable=too-few-public-methods
         assert self.old_terminal_state is not None
         termios.tcsetattr(sys.stdin, termios.TCSANOW, self.old_terminal_state)
 
-    def _run_hass(self) -> int:
-        assert self.cfg is not None
+    def _run_hass(self) -> None:
         self.console.print(Markdown("# Home Assistant"))
+
+        # Forget old interrupts
+        self.sigint_tracker.reset()
+
+        # Start HASS (also waits for HA on exit)
+        with self._start_hass() as proc:
+            # Get stdout of HA
+            out = proc.stdout
+            assert out is not None
+
+            # Loop and print HA logs
+            with DefaultSelector() as selector:
+                selector.register(out, EVENT_READ)
+                selector.register(self.sigint_tracker.fd_for_wait(), EVENT_READ)
+
+                # Read & log lines
+                line_tracker = LineTracker()
+                while True:
+                    events = selector.select()
+                    ha_events = next(
+                        (f_events for key, f_events in events if key.fileobj == out), 0
+                    )
+
+                    if self.sigint_tracker.had_sigints():
+                        streak_length_to_kill = 5
+                        streak = self.sigint_tracker.streak()
+                        if streak < streak_length_to_kill:
+                            self.console.print(
+                                "[yellow]Sent SIGINT to Home Assistant, press Ctrl+C"
+                                f" {streak_length_to_kill - streak}"
+                                " times more to kill[/]"
+                            )
+                            proc.send_signal(signal.SIGINT)
+                        else:
+                            self.console.print("[yellow]:skull: Killing HA[/]")
+                            proc.kill()
+
+                    if ha_events & EVENT_READ:
+                        data = out.read()
+                        for line in line_tracker.lines(data):
+                            self._print_ha_log_line(line)
+                        if len(data) == 0:
+                            # EOF - most likely HA stopped
+                            break
+
+    def _print_ha_log_line(self, line: bytes) -> None:
+        assert self.cfg is not None
+        line_str = line.decode("utf-8", errors="replace")
+        line_color = self.cfg.logging.color_for_line(line_str) or "grey50"
+        self.console.print(f"[{line_color}]{escape(line_str)}[/]")
+
+    @contextlib.contextmanager
+    def _start_hass(self) -> Generator[subprocess.Popen[bytes], None, None]:
+        assert self.cfg is not None
         hass_path = self.cfg.paths.venv / "bin" / "hass"
         subprocess_env = dict(os.environ)
         subprocess_env.pop("PYTHONPATH", None)
         hass_command = [str(hass_path), "-c", str(self.cfg.paths.data), "-v"]
 
-        # pylint: disable=consider-using-with
-        self.proc = subprocess.Popen(
+        with subprocess.Popen(
             hass_command,
             env=subprocess_env,
             stdin=subprocess.DEVNULL,
-            stdout=None,
+            stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-        )
+            # detach from terminal so that Ctrl+C is not propagated
+            start_new_session=True,
+        ) as proc:
+            try:
+                assert proc.stdout is not None
+                make_nonblocking(proc.stdout)
+                yield proc
+            except Exception:
+                self.console.print("[red]something went wrong[/]")
+                self.console.print_exception()
+                proc.kill()
+                raise
 
-        # HA has SIGINT handler also will be called on Ctrl+C
-        # hactl process ignores SIGINT so we can wait for HA to exit
-        return self.proc.wait()
+
+class SigintTracker:
+    def __init__(self, streak_max_delay: timedelta = timedelta(seconds=3)) -> None:
+        self._streak = 0
+        self._last_sigint_dt: Optional[datetime] = None
+        self._r, self._w = Pipe(False)
+        self._streak_max_delay = streak_max_delay
+        make_nonblocking(self._r)
+        make_nonblocking(self._w)
+
+    def reset(self) -> None:
+        while self._r.poll():
+            self._r.recv_bytes()
+        self._streak = 0
+        self._last_sigint_dt = None
+
+    def handle_sigint(self, _sig: int, _frame_type: Optional[FrameType]) -> None:
+        now = datetime.now()
+        if (
+            self._last_sigint_dt is None
+            or now - self._last_sigint_dt <= self._streak_max_delay
+        ):
+            self._streak += 1
+        else:
+            self._streak = 1
+        self._last_sigint_dt = now
+        try:
+            self._w.send_bytes(b"s")
+        except BlockingIOError:
+            # ignore
+            pass
+
+    def fd_for_wait(self) -> FileDescriptorLike:
+        return self._r
+
+    def streak(self) -> int:
+        return self._streak
+
+    def had_sigints(self) -> bool:
+        """Checks if sigints were received since last had_sigints call"""
+        if not self._r.poll():
+            return False
+        while self._r.poll():
+            self._r.recv_bytes()
+        return True
