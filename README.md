@@ -54,3 +54,28 @@ dev:dev
 | /usr/bin/hactl   | hactl symlink, links to hactl executable inside venv |
 
 Probably you want to mount `configuration.yaml` or `ui-lovelace.yaml` inside `/hdata`.
+
+## Debugging
+hactl always starts debugpy that your connect to from VS Code.
+
+**NB: Enable 'Debug: Show Sub Sessions In Tool Bar' in VS Code settings, [VS Code is buggy without that flag](https://github.com/microsoft/vscode-python/issues/19720)**.
+
+
+.vscode/launch.json
+```
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: attach",
+            "type": "python",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 5678
+            },
+            "justMyCode": false
+        }
+    ]
+}
+```
