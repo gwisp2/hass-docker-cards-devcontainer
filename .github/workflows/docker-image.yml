@@ -1,4 +1,4 @@
-name: Docker Image CI
+name: build docker image
 
 on:
   push:
@@ -16,7 +16,7 @@ jobs:
       uses: docker/metadata-action@v4
       with:
         images: |
-          gwisp2/hass-docker-cards-devcontainer
+          gwisp2/hass-devcontainer
         tags: |
           type=sha
         flavor: |

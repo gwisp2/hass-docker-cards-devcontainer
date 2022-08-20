@@ -1,6 +1,6 @@
-# hass-docker-cards-dev
+# hass-devcontainer
 
-Devcontainer for development of Lovelace cards for Home Assistant.
+Devcontainer for the development of Lovelace cards and custom components for Home Assistant.
 
 Features:
 1. HA Components
@@ -20,7 +20,7 @@ Features:
 .devcontainer/devcontainer.json
 ```json
 {
-    "image": "gwisp2/hass-docker-cards-devcontainer:latest",
+    "image": "gwisp2/hass-devcontainer:latest",
     "postStartCommand": "hactl run",
     "forwardPorts": [
         8123
@@ -41,6 +41,9 @@ lovelace:
     plugins: ["piitaya/lovelace-mushroom"]
     extra_files: ["dist/my-super-card.js"]
 ```
+
+## HA credentials
+dev:dev
 
 ## Paths
 | Path             |  Purpose      |

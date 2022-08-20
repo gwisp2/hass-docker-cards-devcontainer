@@ -60,5 +60,5 @@ RUN --mount=type=cache,target=/home/vscode/.cache,uid=1000,gid=1000 hactl setup
 
 EXPOSE 8123
 
-VOLUME /config
+VOLUME /hdata
 CMD hactl run
