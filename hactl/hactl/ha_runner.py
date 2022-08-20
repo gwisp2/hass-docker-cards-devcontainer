@@ -15,6 +15,7 @@ from rich.markdown import Markdown
 from rich.markup import escape
 
 from hactl.tasks import SetupLovelaceTask, TaskContextImpl
+from hactl.tasks.setup_custom_components_task import SetupCustomComponentsTask
 
 from .config import ConfigSource, DirConfigSource, FilesConfigSource, HactlConfig
 from .tasks.commons import FileDescriptorLike, LineTracker, make_nonblocking
@@ -61,7 +62,13 @@ class HaRunner:  # pylint: disable=too-few-public-methods
                 self.console.print_json(self.cfg.json())
 
             # Recreate lovelace resources
-            SetupLovelaceTask(self.cfg).execute(TaskContextImpl(self.console))
+            tasks = [SetupLovelaceTask(self.cfg), SetupCustomComponentsTask(self.cfg)]
+            for task in tasks:
+                ctx = TaskContextImpl(self.console)
+                task.execute(ctx)
+                if ctx.status() != "ok":
+                    self.cfg = None
+                    return False
 
             return True
         except Exception as exc:  # pylint: disable=broad-except

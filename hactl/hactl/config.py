@@ -23,6 +23,16 @@ class UserCredentials(
     password: str
 
 
+class CustomComponentLink(
+    BaseModel, extra=Extra.forbid
+):  # pylint: disable=too-few-public-methods
+    path: Path
+    name: Optional[str]
+
+    def effective_name(self) -> str:
+        return self.name if self.name is not None else self.path.name
+
+
 class LovelaceConfig(
     BaseModel, extra=Extra.forbid
 ):  # pylint: disable=too-few-public-methods
@@ -57,6 +67,7 @@ class HactlConfig(
 ):  # pylint: disable=too-few-public-methods
     paths: HactlPaths
     user: UserCredentials
+    customComponents: List[CustomComponentLink] = []
     lovelace: LovelaceConfig
     version: Optional[str]
     logging: LoggingConfig

@@ -17,6 +17,7 @@ from hactl.tasks import (
     EnsureHassConfigExistsTask,
     InstallHacsTask,
     InstallHaTask,
+    SetupCustomComponentsTask,
     SetupLovelaceTask,
     TaskContextImpl,
 )
@@ -87,13 +88,14 @@ def main() -> None:
             CreateHassUserTask(cfg),
             BypassOnboardingTask(cfg),
             SetupLovelaceTask(cfg),
+            SetupCustomComponentsTask(cfg),
             InstallHacsTask(cfg),
             DryRunHassTask(cfg),
         ]
         perform_tasks(console, tasks)
     elif command == CMD_CONFIGURE:
         cfg = config_source.load_config()
-        tasks = [SetupLovelaceTask(cfg)]
+        tasks = [SetupLovelaceTask(cfg), SetupCustomComponentsTask(cfg)]
         perform_tasks(console, tasks)
     elif command == CMD_RUN:
         runner = HaRunner(config_source, console)

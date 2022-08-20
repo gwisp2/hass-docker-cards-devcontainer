@@ -4,6 +4,7 @@ from .dry_run_hass_task import DryRunHassTask
 from .ensure_hass_config_exists_task import EnsureHassConfigExistsTask
 from .install_ha_task import InstallHaTask
 from .install_hacs_task import InstallHacsTask
+from .setup_custom_components_task import SetupCustomComponentsTask
 from .setup_lovelace_task import SetupLovelaceTask
 from .task import Task
 from .task_context import TaskContext, TaskContextImpl
@@ -16,6 +17,7 @@ __all__ = [
     "InstallHaTask",
     "InstallHacsTask",
     "SetupLovelaceTask",
+    "SetupCustomComponentsTask",
     "Task",
     "TaskContext",
     "TaskContextImpl",

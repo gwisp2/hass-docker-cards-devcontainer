@@ -7,10 +7,12 @@ Features:
     - automatic download of third-party Lovelace cards from Github
     - automatic generation of Lovelace resources list
     - HACS is preinstalled
+    - automatic creation of symlinks in custom_components
 2. Running HA
     - instantaneous startup because dependencies are already installed
     - colored logs
     - restart HA with a simple key press
+    - ready-for-attach debug adapter is listening on port 5678
 3. Development tools
     - preinstalled Playwright dependencies & browsers
 
@@ -40,6 +42,8 @@ Features:
 lovelace:
     plugins: ["piitaya/lovelace-mushroom"]
     extra_files: ["dist/my-super-card.js"]
+customComponents:
+    - path: /path/to/my/custom/component/in/devcontainer/super_component
 ```
 
 ## HA credentials

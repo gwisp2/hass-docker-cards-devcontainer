@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, final
 
 from rich.console import RenderableType
+from rich.traceback import Traceback
 
 from .commons import TaskException
 from .task_context import TaskContext
@@ -28,9 +29,9 @@ class Task(ABC):
         except TaskException as exc:
             self.log(exc.message)
             self._complete("failed")
-        except Exception as exc:  # pylint: disable=broad-except
+        except Exception:  # pylint: disable=broad-except
             self.log("Unknown exception")
-            self.log(str(exc))
+            self.log(Traceback())
             self._complete("failed")
 
     @abstractmethod
