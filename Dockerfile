@@ -51,7 +51,7 @@ RUN set -e; . /etc/profile; mkdir /tmp/playwright && cd /tmp/playwright && \
 
 # Copy and install hactl - HA setup & run helper
 RUN --mount=type=cache,target=/home/root/.cache sudo -H pip install poetry poethepoet
-COPY hactl /hactl
+COPY --chown=vscode:vscode hactl /hactl
 RUN --mount=type=cache,target=/home/vscode/.cache,uid=1000,gid=1000 cd /hactl && poetry install && sudo ln -s /hactl/.venv/bin/hactl /usr/bin/hactl
 
 # Install Home Assitant
