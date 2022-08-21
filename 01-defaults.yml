@@ -15,5 +15,3 @@ logging:
       line_color: red
     - pattern: '.*WARNING.*'
       line_color: yellow
-customComponents:
-  - git: gwisp2/hass-time-machine#d0488d566cb3a25abebe6cdeaa7c3cd044af13f3
