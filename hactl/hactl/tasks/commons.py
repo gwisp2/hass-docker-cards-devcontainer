@@ -32,6 +32,7 @@ def run_command(
     reset_pythonpath: bool = True,
     catch_output: bool = True,
     raise_on_error: bool = True,
+    cwd: Union[None, str, os.PathLike[str]] = None,
 ) -> subprocess.CompletedProcess[bytes]:
     # Convert paths to strings
     command: List[str] = [str(arg) for arg in command_ex]
@@ -51,10 +52,11 @@ def run_command(
             stderr=subprocess.STDOUT,
             check=False,
             env=subprocess_env,
+            cwd=cwd,
         )
     else:
         result = subprocess.run(
-            command, stdin=subprocess.DEVNULL, check=False, env=subprocess_env
+            command, stdin=subprocess.DEVNULL, check=False, env=subprocess_env, cwd=cwd
         )
 
     # Return result if ok or if errors are ignored

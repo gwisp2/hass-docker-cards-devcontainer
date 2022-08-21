@@ -62,10 +62,20 @@ def main() -> None:
         help="configuration file",
     )
     parser.add_argument("command", type=str, choices=CMD_TYPES)
+    parser.add_argument(
+        "--wait-for-debugger",
+        dest="wait_for_debugger",
+        action="store_const",
+        const=True,
+    )
 
     args = parser.parse_args()
     config_paths: List[Path] = args.configs
     command: CmdType = args.command
+
+    if args.wait_for_debugger:
+        console.print("Waiting for debugger...")
+        debugpy.wait_for_client()
 
     # Use default config_paths if not defined
     if config_paths is None:

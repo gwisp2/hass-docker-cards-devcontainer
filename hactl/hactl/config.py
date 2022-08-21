@@ -2,9 +2,9 @@ import re
 from abc import ABC, abstractmethod
 from functools import reduce
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Extra, Field
+from pydantic import BaseModel, Extra, Field, root_validator, validator
 from pydantic_yaml import YamlModel
 from ruamel.yaml import YAML
 
@@ -26,11 +26,28 @@ class UserCredentials(
 class CustomComponentLink(
     BaseModel, extra=Extra.forbid
 ):  # pylint: disable=too-few-public-methods
-    path: Path
-    name: Optional[str]
+    path: Optional[Path]
+    git: Optional[str]
 
-    def effective_name(self) -> str:
-        return self.name if self.name is not None else self.path.name
+    @validator("path")
+    @classmethod
+    def validate_path(cls, value: Path) -> Path:
+        if not value.is_absolute():
+            raise ValueError(f"'path' value must be an absolute path: {value}")
+        if not value.exists():
+            raise ValueError(f"{value} does not exist")
+        return value
+
+    @root_validator(skip_on_failure=True)
+    @classmethod
+    def check_source_is_set(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        path = values.get("path")
+        git = values.get("git")
+        if path is None and git is None:
+            raise ValueError("Either path or git must be set")
+        if path is not None and git is not None:
+            raise ValueError("path and git must not be used at the same time")
+        return values
 
 
 class LovelaceConfig(
