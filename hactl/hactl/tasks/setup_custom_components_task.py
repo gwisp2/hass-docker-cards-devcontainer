@@ -68,13 +68,17 @@ class SetupCustomComponentsTask(Task):
     ) -> Path:
         component_link_path = custom_components_path / component_root.name
         action_prefix: Optional[str] = None
-        if component_link_path.exists():
+        if component_link_path.is_symlink():
             current_link_target = Path(os.readlink(component_link_path))
             if current_link_target != component_root:
                 component_link_path.unlink()
                 action_prefix = "(modified) "
             else:
                 action_prefix = None
+        elif component_link_path.exists():
+            raise TaskException(
+                f"{escape(str(component_link_path))} exists and is not a symlink"
+            )
         else:
             action_prefix = "(new) "
 
