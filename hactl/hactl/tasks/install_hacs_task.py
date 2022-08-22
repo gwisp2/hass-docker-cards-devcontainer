@@ -16,7 +16,7 @@ class InstallHacsTask(Task):
         self.cfg = cfg
 
     def run(self) -> None:
-        hacs_dest_dir = self.cfg.paths.data / "custom_components" / "hacs"
+        hacs_dest_dir = self.cfg.ha.data / "custom_components" / "hacs"
         if hacs_dest_dir.exists():
             return
 

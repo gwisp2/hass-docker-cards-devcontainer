@@ -18,16 +18,16 @@ class SetupCustomComponentsTask(Task):
         self.git_utils = GitUtils(self)
 
     def run(self) -> None:
-        if len(self.cfg.customComponents) == 0:
+        if len(self.cfg.components) == 0:
             # Don't return
             # We still need to remove old symlinks
             self.log("No custom components configured")
 
-        custom_components_path = self.cfg.paths.data / "custom_components"
+        custom_components_path = self.cfg.ha.data / "custom_components"
         custom_components_path.mkdir(exist_ok=True)
 
         component_roots: List[Path] = []
-        for component_cfg in self.cfg.customComponents:
+        for component_cfg in self.cfg.components:
             if component_cfg.git:
                 # Download from git
                 worktree = self.git_utils.get_from_git(component_cfg.git)

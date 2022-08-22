@@ -9,7 +9,7 @@ class BypassOnboardingTask(Task):
         self.cfg = cfg
 
     def run(self) -> None:
-        dot_storage_path = self.cfg.paths.data / ".storage"
+        dot_storage_path = self.cfg.ha.data / ".storage"
         dot_storage_path.mkdir(exist_ok=True)
         onboarding_data_file = dot_storage_path / "onboarding"
         onboarding_data_file.write_text(

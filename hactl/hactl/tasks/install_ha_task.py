@@ -8,23 +8,24 @@ from .task import Task
 
 class InstallHaTask(Task):
     def __init__(self, cfg: HactlConfig) -> None:
-        super().__init__(
-            f"Installing HASS{' ' + escape(cfg.version) if cfg.version else ''}"
-        )
+        super().__init__("Installing homeassistant")
         self.cfg = cfg
+        self.version_constrant: str = ""
+        if self.cfg.ha.version is not None:
+            self.version_constrant = "==" + self.cfg.ha.version
 
     def run(self) -> None:
-        pip_path = self.cfg.paths.venv / "bin" / "pip"
+        pip_path = self.cfg.ha.venv / "bin" / "pip"
 
         if not pip_path.exists():
-            self.log(f"Creating virtualenv at {escape(str(self.cfg.paths.venv))}")
-            run_command(["python", "-m", "venv", str(self.cfg.paths.venv)])
+            self.log(f"Creating virtualenv at {escape(str(self.cfg.ha.venv))}")
+            run_command(["python", "-m", "venv", str(self.cfg.ha.venv)])
 
         run_command(
             [
                 pip_path,
                 "install",
-                f"homeassistant{'==' + self.cfg.version if self.cfg.version else ''}",
+                f"homeassistant{self.version_constrant}",
                 "sqlalchemy",
                 "fnvhash",
             ]

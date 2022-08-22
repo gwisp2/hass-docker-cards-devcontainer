@@ -17,13 +17,13 @@ from rich.markup import escape
 from hactl.tasks import SetupLovelaceTask, TaskContextImpl
 from hactl.tasks.setup_custom_components_task import SetupCustomComponentsTask
 
-from .config import ConfigSource, DirConfigSource, FilesConfigSource, HactlConfig
+from .config import ConfigSource, HactlConfig
 from .tasks.util.commands import LineTracker, make_nonblocking
 from .tasks.util.types import FileDescriptorLike
 
 
 class HaRunner:  # pylint: disable=too-few-public-methods
-    Action = Literal["quit", "start", "reload_config"]
+    Action = Literal["quit", "start", "reload_config", "print_config"]
 
     def __init__(self, cfg_source: ConfigSource, console: Console) -> None:
         self.cfg_source = cfg_source
@@ -49,6 +49,8 @@ class HaRunner:  # pylint: disable=too-few-public-methods
                     return
                 if next_action == "reload_config":
                     self._reload_config()
+                elif next_action == "print_config":
+                    self._print_config()
                 elif next_action == "start":
                     self._run_hass()
         finally:
@@ -58,9 +60,6 @@ class HaRunner:  # pylint: disable=too-few-public-methods
     def _reload_config(self, verbose: bool = True) -> bool:
         try:
             self.cfg = self.cfg_source.load_config()
-            if verbose:
-                self.console.print("[green]Reloaded config[/]")
-                self.console.print_json(self.cfg.json())
 
             # Recreate lovelace resources
             tasks = [SetupLovelaceTask(self.cfg), SetupCustomComponentsTask(self.cfg)]
@@ -70,29 +69,32 @@ class HaRunner:  # pylint: disable=too-few-public-methods
                 if ctx.status() != "ok":
                     self.cfg = None
                     return False
-
-            return True
         except Exception as exc:  # pylint: disable=broad-except
             self.cfg = None
             self.console.print("[red]Invalid config[/red]")
             self.console.print(exc)
             return False
+        else:
+            if verbose:
+                self.console.print("[green]Reloaded config[/]")
+                self._print_config()
+            return True
+
+    def _print_config(self) -> None:
+        if self.cfg is not None:
+            self.console.print_json(self.cfg.json())
 
     def _prompt_next_action(self) -> Action:
         self.console.print(Markdown("# hactl"))
         if self.cfg is None:
             self.console.print("[yellow]Warning: no valid config[/]")
-        if isinstance(self.cfg_source, DirConfigSource):
-            # pylint: disable=line-too-long
-            self.console.print(
-                f"Config files: every file in {escape(str(self.cfg_source.configs_dir))}"  # noqa: E501
-            )
-        if isinstance(self.cfg_source, FilesConfigSource):
-            self.console.print(
-                f"Config files: {'; '.join([str(f) for f in self.cfg_source.files])}"
-            )
+        exists = "[exists]" if self.cfg_source.config_path.exists() else "[not exists]"
+        self.console.print(
+            f"Config file: {escape(str(self.cfg_source.config_path))} {escape(exists)}"
+        )
         self.console.print("Press [blue]q[/] to exit")
         self.console.print("Press [blue]r[/] to reload config")
+        self.console.print("Press [blue]p[/] to print config")
         if self.cfg is not None:
             self.console.print("Press [blue]s[/] to start HA")
         while True:
@@ -101,6 +103,8 @@ class HaRunner:  # pylint: disable=too-few-public-methods
                 return "quit"
             if key == "s" and self.cfg is not None:
                 return "start"
+            if key == "p":
+                return "print_config"
             if key == "r":
                 return "reload_config"
 
@@ -176,7 +180,7 @@ class HaRunner:  # pylint: disable=too-few-public-methods
 
         # Important: use python -m homeassistant.__main__ instead of running bin/hass
         # debugpy can't understand to inject into the subprocess in the latter case
-        python_path = self.cfg.paths.venv / "bin" / "python"
+        python_path = self.cfg.ha.venv / "bin" / "python"
         subprocess_env = dict(os.environ)
         subprocess_env.pop("PYTHONPATH", None)
         hass_command = [
@@ -184,7 +188,7 @@ class HaRunner:  # pylint: disable=too-few-public-methods
             "-m",
             "homeassistant.__main__",
             "-c",
-            str(self.cfg.paths.data),
+            str(self.cfg.ha.data),
             "-v",
         ]
 

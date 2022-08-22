@@ -3,12 +3,12 @@
 import argparse
 import sys
 from pathlib import Path
-from typing import List, Literal
+from typing import List, Literal, Optional
 
 import debugpy
 from rich.console import Console
 
-from hactl.config import DirConfigSource, FilesConfigSource
+from hactl.config import ConfigSource
 from hactl.ha_runner import HaRunner
 from hactl.tasks import (
     BypassOnboardingTask,
@@ -54,9 +54,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Control Home Assistant")
     parser.add_argument(
         "-c",
-        dest="configs",
+        dest="config",
         metavar="CONFIG",
-        action="append",
         required=False,
         type=Path,
         help="configuration file",
@@ -70,26 +69,22 @@ def main() -> None:
     )
 
     args = parser.parse_args()
-    config_paths: List[Path] = args.configs
+    config_path: Optional[Path] = args.config
     command: CmdType = args.command
 
     if args.wait_for_debugger:
         console.print("Waiting for debugger...")
         debugpy.wait_for_client()
 
-    # Use default config_paths if not defined
-    if config_paths is None:
-        default_config_root = Path("/etc/hactl")
-        config_paths = list(default_config_root.glob("*"))
-        if len(config_paths) == 0:
-            console.print(f"No configuration found in [blue]{default_config_root}[/]")
-            console.print("Add some files there or use -c to provide config paths")
-            sys.exit(2)
-        config_source = DirConfigSource(default_config_root)
-    else:
-        config_source = FilesConfigSource(config_paths)
+    # Use default config_path if not defined
+    if config_path is None:
+        config_path = Path("/etc/hactl.yml")
+    elif not config_path.exists():
+        console.print(f"{config_path} does not exist")
+        sys.exit(2)
 
-    # Convert config to Config class
+    config_source = ConfigSource(config_path)
+
     if command == CMD_SETUP:
         cfg = config_source.load_config()
         tasks = [

@@ -10,16 +10,16 @@ class CreateHassUserTask(Task):
     cfg: HactlConfig
 
     def __init__(self, cfg: HactlConfig) -> None:
-        super().__init__(f"Creating user [blue]{escape(cfg.user.name)}[/]")
+        super().__init__(f"Creating user [blue]{escape(cfg.ha.user.name)}[/]")
         self.cfg = cfg
 
     def run(self) -> None:
-        username = self.cfg.user.name
-        password = self.cfg.user.password
+        username = self.cfg.ha.user.name
+        password = self.cfg.ha.user.password
 
         run_hass_command(
-            venv=self.cfg.paths.venv,
+            venv=self.cfg.ha.venv,
             args=["add", username, password],
-            data_path=self.cfg.paths.data,
+            data_path=self.cfg.ha.data,
             script_name="auth",
         )

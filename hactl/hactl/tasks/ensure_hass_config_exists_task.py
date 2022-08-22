@@ -12,8 +12,8 @@ class EnsureHassConfigExistsTask(Task):
 
     def run(self) -> None:
         run_hass_command(
-            venv=self.cfg.paths.venv,
+            venv=self.cfg.ha.venv,
             args=[],
-            data_path=self.cfg.paths.data,
+            data_path=self.cfg.ha.data,
             script_name="ensure_config",
         )

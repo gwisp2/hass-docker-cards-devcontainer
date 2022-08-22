@@ -23,7 +23,7 @@ class DryRunHassTask(Task):
         self.cfg = cfg
 
     def run(self) -> None:
-        hass_path = self.cfg.paths.venv / "bin" / "hass"
+        hass_path = self.cfg.ha.venv / "bin" / "hass"
 
         # Forbid using non-virtualenv packages
         subprocess_env = dict(os.environ)

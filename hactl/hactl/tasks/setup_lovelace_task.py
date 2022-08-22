@@ -19,7 +19,7 @@ class SetupLovelaceTask(Task):
 
     def run(self) -> None:
         # Download Lovelace plugins
-        www_path = self.cfg.paths.data / "www"
+        www_path = self.cfg.ha.data / "www"
         www_path.mkdir(exist_ok=True)
 
         # Download plugins from github
@@ -119,5 +119,5 @@ class SetupLovelaceTask(Task):
         }
 
         # Save configuration
-        lovelace_config_file = self.cfg.paths.data / ".storage" / "lovelace_resources"
+        lovelace_config_file = self.cfg.ha.data / ".storage" / "lovelace_resources"
         lovelace_config_file.write_text(json.dumps(config), "utf-8")
