@@ -20,7 +20,7 @@ Features:
     - node.js 16 (with nvm)
     - sqlite3 cli
 
-## Example usage
+## Custom component example 
 
 .devcontainer/devcontainer.json
 ```json
@@ -30,26 +30,36 @@ Features:
     "forwardPorts": [
         8123
     ],
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+    "workspaceFolder": "/workspace",
     "mounts": [
-        // Mount your workspace directory
-        "source=${localWorkspaceFolder},target=/hdata/www/workspace,type=bind",
-
-        // Mount file with additional configuration
-        "source=${localWorkspaceFolder}/.devcontainer/02-custom.yaml,target=/etc/hactl/02-custom.yaml,type=bind"
+        // hactl configuration
+        "source=${localWorkspaceFolder}/.devcontainer/hactl.yaml,target=/etc/hactl.yaml,type=bind",
+        // HA configuration.yaml
+        "source=${localWorkspaceFolder}/.devcontainer/configuration.yaml,target=/hdata/configuration.yaml,type=bind"
+    ],
+    "extensions": [
+        "ms-python.python"
     ]
 }
 ```
 
-.devcontainer/02-custom.yaml
+.devcontainer/hactl.yaml
 ```yaml
-lovelace:
-    plugins: ["piitaya/lovelace-mushroom"]
-    extra_files: ["dist/my-super-card.js"]
+components:
+- path: /workspace/custom_components/time_machine
+```
 
-# hactl will recursively search for manifest.json and the symlink to parent of manifest.json will be added to custom_components
-customComponents:
-    - path: /path/my/super_component
-    - git: gwisp2/hass-time-machine#main
+.devcontainer/configuration.yaml
+```yaml
+default_config:
+
+time_machine:
+
+input_boolean:
+  hallway_light:
+  room_light:
+  kitchen_light:
 ```
 
 ## HA credentials
