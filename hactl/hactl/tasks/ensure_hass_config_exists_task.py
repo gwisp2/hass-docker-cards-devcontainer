@@ -1,6 +1,6 @@
 from hactl.config import HactlConfig
-from hactl.tasks.commons import run_hass_command
 from hactl.tasks.task import Task
+from hactl.tasks.util.commands import run_hass_command
 
 
 class EnsureHassConfigExistsTask(Task):

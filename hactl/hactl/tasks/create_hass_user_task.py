@@ -1,7 +1,7 @@
 from rich.markup import escape
 
 from hactl.config import HactlConfig
-from hactl.tasks.commons import run_hass_command
+from hactl.tasks.util.commands import run_hass_command
 
 from .task import Task
 

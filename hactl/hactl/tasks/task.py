@@ -4,8 +4,8 @@ from typing import Optional, final
 from rich.console import RenderableType
 from rich.traceback import Traceback
 
-from .commons import TaskException
 from .task_context import TaskContext
+from .util.types import TaskException
 
 
 class Task(ABC):

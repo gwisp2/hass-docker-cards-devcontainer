@@ -3,28 +3,13 @@ import os
 import shlex
 import subprocess
 from pathlib import Path, PurePath
-from typing import List, Protocol, TypeAlias, Union
+from typing import List, Union
 
-from rich.console import Group, RenderableType
+from rich.console import Group
 from rich.markup import escape
 from rich.padding import Padding
 
-
-class HasFileno(Protocol):  # pylint: disable=too-few-public-methods
-    def fileno(self) -> int:
-        ...
-
-
-FileDescriptor: TypeAlias = int
-FileDescriptorLike: TypeAlias = Union[int, HasFileno]
-
-
-class TaskException(Exception):
-    message: RenderableType
-
-    def __init__(self, renderable: RenderableType) -> None:
-        super().__init__()
-        self.message = renderable
+from hactl.tasks.util.types import FileDescriptorLike, TaskException
 
 
 def run_command(

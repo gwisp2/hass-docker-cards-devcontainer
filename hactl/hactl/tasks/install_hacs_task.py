@@ -5,7 +5,7 @@ import requests
 from rich.markup import escape
 
 from hactl.config import HactlConfig
-from hactl.tasks.commons import TaskException
+from hactl.tasks.util.types import TaskException
 
 from .task import Task
 

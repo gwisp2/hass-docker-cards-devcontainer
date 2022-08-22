@@ -9,7 +9,8 @@ from typing import IO, Dict, Literal, Optional, Tuple
 from rich.padding import Padding
 
 from hactl.config import HactlConfig
-from hactl.tasks.commons import LineTracker, TaskException, make_nonblocking
+from hactl.tasks.util.commands import LineTracker, make_nonblocking
+from hactl.tasks.util.types import TaskException
 
 from .task import Task
 

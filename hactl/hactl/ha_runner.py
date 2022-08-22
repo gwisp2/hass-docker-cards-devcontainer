@@ -18,7 +18,8 @@ from hactl.tasks import SetupLovelaceTask, TaskContextImpl
 from hactl.tasks.setup_custom_components_task import SetupCustomComponentsTask
 
 from .config import ConfigSource, DirConfigSource, FilesConfigSource, HactlConfig
-from .tasks.commons import FileDescriptorLike, LineTracker, make_nonblocking
+from .tasks.util.commands import LineTracker, make_nonblocking
+from .tasks.util.types import FileDescriptorLike
 
 
 class HaRunner:  # pylint: disable=too-few-public-methods

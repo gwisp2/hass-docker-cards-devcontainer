@@ -6,8 +6,8 @@ from typing import Optional
 from git.repo import Repo
 from rich.markup import escape
 
-from hactl.tasks.commons import run_command
 from hactl.tasks.task import Task
+from hactl.tasks.util.commands import run_command
 
 
 class GitUtils:

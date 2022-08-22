@@ -6,7 +6,7 @@ import requests
 from rich.markup import escape
 
 from hactl.config import HactlConfig
-from hactl.tasks.commons import TaskException
+from hactl.tasks.util.types import TaskException
 
 from .task import Task
 from .util.symlink_helper import make_name_to_path_dict, update_symlinks
