@@ -6,15 +6,15 @@ from typing import Optional
 from git.repo import Repo
 from rich.markup import escape
 
-from hactl.tasks.task import Task
 from hactl.tasks.util.commands import run_command
+from hactl.tasks.util.rich_logger import RichLogger
 
 
 class GitUtils:
-    def __init__(self, task: Task) -> None:
+    def __init__(self, logger: RichLogger) -> None:
         self.repos_dir = Path("~/.hactl/repos-bare").expanduser()
         self.worktrees_dir = Path("~/.hactl/repos-worktrees").expanduser()
-        self.task = task
+        self.logger = logger
 
     def _prepare_source_url(self, source_url: str) -> str:
         github_repo_match = re.fullmatch(r"([\w_-]+)/([\w_-]+)", source_url)
@@ -44,7 +44,7 @@ class GitUtils:
             is_new = True
 
         if is_new or force_fetch:
-            self.task.log(f"Fetching {escape(source)}")
+            self.logger.log(f"Fetching {escape(source)}")
             repository.remotes[0].fetch()
 
         return repository
@@ -97,8 +97,8 @@ class GitUtils:
         # Compare commits
         new_commit_sha = self.get_current_commit_sha(new_worktree)
         if new_commit_sha != prev_commit_sha:
-            self.task.log(f"Updated from {prev_commit_sha} to {new_commit_sha}")
+            self.logger.log(f"Updated from {prev_commit_sha} to {new_commit_sha}")
         else:
-            self.task.log("Already up-to-date")
+            self.logger.log("Already up-to-date")
 
         return new_worktree

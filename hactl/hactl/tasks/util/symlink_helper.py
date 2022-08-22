@@ -4,7 +4,7 @@ from typing import Dict, List
 
 from rich.markup import escape
 
-from hactl.tasks.task import Task
+from hactl.tasks.util.rich_logger import RichLogger
 
 
 def make_name_to_path_dict(paths: List[Path]) -> Dict[str, Path]:
@@ -18,7 +18,9 @@ def make_name_to_path_dict(paths: List[Path]) -> Dict[str, Path]:
     return result
 
 
-def update_symlinks(root_dir: Path, paths: Dict[str, Path], logger: Task) -> List[Path]:
+def update_symlinks(
+    root_dir: Path, paths: Dict[str, Path], logger: RichLogger
+) -> List[Path]:
     """
     Creates or updated symlinks in [root_dir] so that they target files
     from [paths]. Any other symlinks in [root_dir] are deleted.
