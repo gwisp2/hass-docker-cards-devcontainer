@@ -78,7 +78,7 @@ def main() -> None:
 
     # Use default config_path if not defined
     if config_path is None:
-        config_path = Path("/etc/hactl.yml")
+        config_path = Path("/etc/hactl.yaml")
     elif not config_path.exists():
         console.print(f"{config_path} does not exist")
         sys.exit(2)
