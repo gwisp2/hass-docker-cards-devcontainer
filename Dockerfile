@@ -55,7 +55,6 @@ COPY --chown=vscode:vscode hactl /hactl
 RUN --mount=type=cache,target=/home/vscode/.cache,uid=1000,gid=1000 cd /hactl && poetry install && sudo ln -s /hactl/.venv/bin/hactl /usr/bin/hactl
 
 # Install Home Assitant
-COPY 01-defaults.yml /etc/hactl/
 RUN --mount=type=cache,target=/home/vscode/.cache,uid=1000,gid=1000 hactl setup
 
 EXPOSE 8123
