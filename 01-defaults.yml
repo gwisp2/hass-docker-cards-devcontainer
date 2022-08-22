@@ -6,9 +6,6 @@ paths:
 user:
   name: dev
   password: dev
-lovelace:
-  plugins: []
-  extra_files: []
 logging:
   colors:
     - pattern: '.*ERROR.*'

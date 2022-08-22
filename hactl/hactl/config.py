@@ -23,6 +23,32 @@ class UserCredentials(
     password: str
 
 
+class LovelacePluginLink(
+    BaseModel, extra=Extra.forbid
+):  # pylint: disable=too-few-public-methods
+    path: Optional[Path]
+    github: Optional[str]
+
+    @validator("path")
+    @classmethod
+    def validate_path(cls, value: Path) -> Path:
+        if not value.is_absolute():
+            raise ValueError(f"'path' value must be an absolute path: {value}")
+        if not value.exists():
+            raise ValueError(f"{value} does not exist")
+        return value
+
+    @root_validator(skip_on_failure=True)
+    @classmethod
+    def check_source_is_set(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        num_fields_set = len([v for v in values.values() if v is not None])
+        if num_fields_set == 0:
+            raise ValueError("One of 'path', 'github' must be set")
+        if num_fields_set >= 2:
+            raise ValueError("path, git and url must not be used at the same time")
+        return values
+
+
 class CustomComponentLink(
     BaseModel, extra=Extra.forbid
 ):  # pylint: disable=too-few-public-methods
@@ -48,13 +74,6 @@ class CustomComponentLink(
         if path is not None and git is not None:
             raise ValueError("path and git must not be used at the same time")
         return values
-
-
-class LovelaceConfig(
-    BaseModel, extra=Extra.forbid
-):  # pylint: disable=too-few-public-methods
-    plugins: List[str]
-    extra_files: List[Path]
 
 
 class LoggingColorRule(BaseModel, extra=Extra.forbid, arbitrary_types_allowed=True):
@@ -85,7 +104,7 @@ class HactlConfig(
     paths: HactlPaths
     user: UserCredentials
     customComponents: List[CustomComponentLink] = []
-    lovelace: LovelaceConfig
+    lovelace: List[LovelacePluginLink] = []
     version: Optional[str]
     logging: LoggingConfig
 

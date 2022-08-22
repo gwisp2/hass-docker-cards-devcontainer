@@ -1,11 +1,11 @@
-import os
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 from rich.markup import escape
 
 from hactl.config import HactlConfig
 from hactl.tasks.commons import TaskException
+from hactl.tasks.util.symlink_helper import make_name_to_path_dict, update_symlinks
 
 from .git_utils import GitUtils
 from .task import Task
@@ -26,7 +26,7 @@ class SetupCustomComponentsTask(Task):
         custom_components_path = self.cfg.paths.data / "custom_components"
         custom_components_path.mkdir(exist_ok=True)
 
-        valid_symlinks: List[Path] = []
+        component_roots: List[Path] = []
         for component_cfg in self.cfg.customComponents:
             if component_cfg.git:
                 # Download from git
@@ -46,52 +46,8 @@ class SetupCustomComponentsTask(Task):
                     f"{escape(str(component_cfg.path))} -> no manifest found"
                 )
 
-            # Find component roots
-            component_roots = [m.parent for m in manifests]
+            component_roots.extend(m.parent for m in manifests)
 
-            # Symlink components
-            for component_root in component_roots:
-                link_path = self._link_custom_component(
-                    custom_components_path, component_root
-                )
-                valid_symlinks.append(link_path)
-
-        # Remove old symlinks
-        for name in os.listdir(custom_components_path):
-            component_dir = custom_components_path / name
-            if component_dir.is_symlink() and component_dir not in valid_symlinks:
-                component_dir.unlink()
-                self.log(f"{escape(str(component_dir))} removed")
-
-    def _link_custom_component(
-        self, custom_components_path: Path, component_root: Path
-    ) -> Path:
-        component_link_path = custom_components_path / component_root.name
-        action_prefix: Optional[str] = None
-        if component_link_path.is_symlink():
-            current_link_target = Path(os.readlink(component_link_path))
-            if current_link_target != component_root:
-                component_link_path.unlink()
-                action_prefix = "(modified) "
-            else:
-                action_prefix = None
-        elif component_link_path.exists():
-            raise TaskException(
-                f"{escape(str(component_link_path))} exists and is not a symlink"
-            )
-        else:
-            action_prefix = "(new) "
-
-        # Check for existance again
-        # If a link exists then it is correct now
-        if not component_link_path.exists():
-            self.log(
-                f"[yellow]{action_prefix}[/yellow][blue]"
-                f"{escape(str(component_link_path))}[/]"
-                f" -> [blue]{escape(str(component_root))}[/]"
-            )
-            os.symlink(component_root, component_link_path, target_is_directory=True)
-        else:
-            self.log(f"{escape(str(component_link_path))} is ok")
-
-        return component_link_path
+        update_symlinks(
+            custom_components_path, make_name_to_path_dict(component_roots), self
+        )

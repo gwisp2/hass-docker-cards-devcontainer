@@ -9,6 +9,7 @@ from hactl.config import HactlConfig
 from hactl.tasks.commons import TaskException
 
 from .task import Task
+from .util.symlink_helper import make_name_to_path_dict, update_symlinks
 
 
 class SetupLovelaceTask(Task):
@@ -22,13 +23,20 @@ class SetupLovelaceTask(Task):
         www_path.mkdir(exist_ok=True)
 
         # Download plugins from github
-        downloaded_file_paths = self._download_plugins(
-            self.cfg.lovelace.plugins, www_path
+        plugin_github_repos = [
+            p.github for p in self.cfg.lovelace if p.github is not None
+        ]
+        downloaded_file_paths = self._download_plugins(plugin_github_repos, www_path)
+
+        # Create symlinks for local plugins
+        local_plugin_paths = [p.path for p in self.cfg.lovelace if p.path is not None]
+        linked_file_paths = update_symlinks(
+            www_path, make_name_to_path_dict(local_plugin_paths), self
         )
 
         # Generate resources
         self._generate_resources_list(
-            downloaded_file_paths, self.cfg.lovelace.extra_files, www_path
+            [*downloaded_file_paths, *linked_file_paths], www_path
         )
 
     def _download_plugins(self, plugins: List[str], www_path: Path) -> List[Path]:
@@ -42,6 +50,7 @@ class SetupLovelaceTask(Task):
             js_module_paths.append(file_path)
 
             if file_path.exists():
+                self.log(f"(exists) {escape(str(file_path))}")
                 continue
 
             if not self._download_plugin(author, repo, filename, file_path):
@@ -87,23 +96,16 @@ class SetupLovelaceTask(Task):
             return False
 
         # Save downloaded file
-        self.log(f"Saving [blue]{escape(str(dest))}[/]")
+        self.log(f"[yellow](downloaded)[/] {escape(str(dest))}")
         dest.write_bytes(content)
 
         return True
 
-    def _generate_resources_list(
-        self, js_module_paths: List[Path], extra_files: List[Path], workspace_path: Path
-    ) -> None:
-        # Generate configuration
-        # Paths for downloaded plugins
-        paths = [
-            str(Path("local") / file.relative_to(workspace_path))
-            for file in js_module_paths
-        ]
-        # Local paths
-        paths.extend([str(Path("./local/workspace") / f) for f in extra_files])
+    def _generate_resources_list(self, paths: List[Path], www_path: Path) -> None:
+        # Make paths relative
+        paths = [Path("local") / file.relative_to(www_path) for file in paths]
 
+        # Generate configuration
         self.log(f"{len(paths)} module(s) for Lovelace found")
         config = {
             "data": {
