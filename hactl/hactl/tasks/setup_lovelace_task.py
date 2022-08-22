@@ -9,7 +9,6 @@ from hactl.config import HactlConfig
 from hactl.tasks.util.types import TaskException
 
 from .task import Task
-from .util.symlink_helper import make_name_to_path_dict, update_symlinks
 
 
 class SetupLovelaceTask(Task):
@@ -28,15 +27,12 @@ class SetupLovelaceTask(Task):
         ]
         downloaded_file_paths = self._download_plugins(plugin_github_repos, www_path)
 
-        # Create symlinks for local plugins
+        # Get paths for local files
         local_plugin_paths = [p.path for p in self.cfg.lovelace if p.path is not None]
-        linked_file_paths = update_symlinks(
-            www_path, make_name_to_path_dict(local_plugin_paths), self
-        )
 
         # Generate resources
         self._generate_resources_list(
-            [*downloaded_file_paths, *linked_file_paths], www_path
+            [*downloaded_file_paths, *local_plugin_paths], www_path
         )
 
     def _download_plugins(self, plugins: List[str], www_path: Path) -> List[Path]:
